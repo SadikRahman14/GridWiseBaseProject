@@ -106,6 +106,7 @@ class ModelInterpreter:
                 "messages": messages,
                 "stream": False,
                 "temperature": 0,
+                "reasoning_effort": "low",
                 "response_format": {"type": "json_object"},
             }
         response = await self.client.post(
