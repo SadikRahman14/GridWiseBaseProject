@@ -40,6 +40,28 @@ def parse_interpretation(text: str, scenario: Scenario) -> Interpretation:
     return Interpretation.model_validate(data).validate_for(scenario)
 
 
+def _retry_delay(response, attempt: int) -> float:
+    """Respect provider rate-limit guidance when available."""
+
+    if response.status_code == 429:
+        retry_after = response.headers.get("retry-after")
+
+        if retry_after:
+            try:
+                return min(
+                    max(float(retry_after), 0.5),
+                    8.0
+                )
+            except ValueError:
+                pass
+
+    # Fallback for temporary 5xx/provider errors.
+    return min(
+        0.5 * (2 ** attempt),
+        2.0
+    )
+
+
 class ModelInterpreter:
     def __init__(self, settings: Settings, client: httpx.AsyncClient):
         self.settings = settings
@@ -80,16 +102,35 @@ class ModelInterpreter:
         else:
             path = "/chat/completions"
             payload = {
-                "model": settings.model, "messages": messages, "stream": False,
-                "temperature": 0, "max_tokens": 1600,
+                "model": settings.model,
+                "messages": messages,
+                "stream": False,
+                "temperature": 0,
                 "response_format": {"type": "json_object"},
             }
         response = await self.client.post(
             settings.base_url + path, json=payload, headers=self._headers(),
             timeout=httpx.Timeout(settings.llm_timeout, connect=4),
         )
+
+        if response.status_code == 429:
+            logger.warning(
+                "rate_limit_details retry_after=%s remaining_tokens=%s reset_tokens=%s",
+                response.headers.get("retry-after"),
+                response.headers.get("x-ratelimit-remaining-tokens"),
+                response.headers.get("x-ratelimit-reset-tokens"),
+            )
         response.raise_for_status()
         data = response.json()
+
+        usage = data.get("usage", {})
+
+        logger.warning(
+            "llm_usage prompt_tokens=%s completion_tokens=%s total_tokens=%s",
+            usage.get("prompt_tokens"),
+            usage.get("completion_tokens"),
+            usage.get("total_tokens"),
+        )
         if settings.provider == "ollama":
             content = data["message"]["content"]
         else:
@@ -100,11 +141,20 @@ class ModelInterpreter:
 
     async def interpret(self, scenario: Scenario) -> Interpretation:
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": json.dumps({
-                "operator_notes": scenario.operator_notes,
-                "battery": scenario.battery.model_dump(),
-            }, ensure_ascii=False)},
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT,
+            },
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "operator_notes": scenario.operator_notes,
+                        "battery_capacity_kwh": scenario.battery.capacity_kwh,
+                    },
+                    ensure_ascii=False,
+                ),
+            },
         ]
         try:
             # One wall-clock budget covers all attempts; retries cannot multiply it.
@@ -122,15 +172,60 @@ class ModelInterpreter:
                             "consistency, finite numbers and reserve <= battery capacity."
                         )})
                     except httpx.HTTPStatusError as error:
-                        logger.warning("model_http_failure status=%d", error.response.status_code)
-                        if error.response.status_code not in {429, 500, 502, 503, 504}:
+                        status = error.response.status_code
+                        headers = error.response.headers
+
+                        logger.warning(
+                            "model_error_body=%s",
+                            error.response.text[:1500]
+                        )
+
+                        if status == 429:
+                            logger.warning(
+                                "rate_limit_details "
+                                "retry_after=%s "
+                                "limit_requests=%s "
+                                "remaining_requests=%s "
+                                "reset_requests=%s "
+                                "limit_tokens=%s "
+                                "remaining_tokens=%s "
+                                "reset_tokens=%s",
+                                headers.get("retry-after"),
+                                headers.get("x-ratelimit-limit-requests"),
+                                headers.get("x-ratelimit-remaining-requests"),
+                                headers.get("x-ratelimit-reset-requests"),
+                                headers.get("x-ratelimit-limit-tokens"),
+                                headers.get("x-ratelimit-remaining-tokens"),
+                                headers.get("x-ratelimit-reset-tokens"),
+                            )
+
+                            logger.warning(
+                                "rate_limit_body=%s",
+                                error.response.text[:1000]
+                            )
+
+                        if status not in {429, 500, 502, 503, 504}:
                             break
+
                         if attempt < self.settings.retries:
-                            await asyncio.sleep(0.2)
+                            delay = _retry_delay(
+                                error.response,
+                                attempt
+                            )
+
+                            logger.warning(
+                                "model_retry status=%d wait=%.2fs",
+                                status,
+                                delay
+                            )
+
+                            await asyncio.sleep(delay)
                     except httpx.RequestError:
                         logger.warning("model_connection_failure attempt=%d", attempt + 1)
                         if attempt < self.settings.retries:
-                            await asyncio.sleep(0.2)
+                            await asyncio.sleep(
+                                min(0.5 * (2 ** attempt), 2.0)
+                            )
         except TimeoutError:
             logger.warning("model_budget_exceeded")
         raise InterpretationError(
