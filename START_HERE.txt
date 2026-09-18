@@ -1,0 +1,33 @@
+GRIDWISE - RUN THIS PROJECT ON YOUR MACHINE
+
+1. Extract the entire ZIP. Do not run files from inside the ZIP viewer.
+2. Install 64-bit Python 3.12 if you do not already have it.
+3. On Windows, double-click setup_windows.bat. Internet is needed to install dependencies.
+4. Double-click demo_windows.bat.
+   This checks all 10 official sample optima and writes output/demo_response.json.
+   No model, API key, training, or GPU is needed for this OFFLINE optimizer demo.
+
+TO RUN THE FULL LLM + API:
+
+5. Install Ollama from https://ollama.com/download and keep its application running.
+6. In a terminal, run: ollama pull qwen2.5:3b
+7. The generated .env already has settings for this local model.
+8. From this project folder, run:
+   .venv\Scripts\python.exe scripts\warmup.py
+9. Double-click start_windows.bat.
+10. Open http://127.0.0.1:8000/docs in your browser.
+    Expand POST /optimize-energy, click Try it out, replace the example with the
+    contents of examples/sample_request.json, then click Execute.
+11. In a SECOND terminal in this project folder, run:
+    .venv\Scripts\python.exe scripts\check_samples.py --mode live
+
+The full API always uses a real model. The offline demo uses organizer-supplied
+interpretations to isolate the optimizer; it cannot establish LLM accuracy.
+
+If the local model is too slow, configure a hosted OpenAI-compatible provider in
+.env as explained in README.md. There is no API key or model weight in this ZIP.
+
+README.md contains macOS/Linux setup, API examples, Docker commands, and troubleshooting.
+docs/ARCHITECTURE.md explains the math and shows where to make changes.
+docs/VERIFICATION.md records what was tested and what still needs a live check.
+docs/SUBMISSION_CHECKLIST.md lists the remaining competition deliverables.

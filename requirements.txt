@@ -1,0 +1,10 @@
+# Direct dependencies pinned to the versions used for verification.
+# Python 3.11-3.13, 64-bit; Python 3.12 recommended.
+fastapi==0.141.1
+starlette==1.6.0
+uvicorn==0.53.0
+pydantic==2.13.5
+numpy==2.3.5
+scipy==1.17.0
+httpx[socks]==0.28.1
+python-dotenv==1.2.3
