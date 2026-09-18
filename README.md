@@ -1,1571 +1,362 @@
+# GridWise: LLM-Assisted Smart Campus Energy Optimization
 
-# GridWise --- LLM-Assisted Smart Campus Energy Optimization
+![Python](https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?style=flat-square&logo=fastapi&logoColor=white)
+![SciPy](https://img.shields.io/badge/SciPy-Optimization-8CAAE6?style=flat-square&logo=scipy&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=flat-square&logo=docker&logoColor=white)
+![Render](https://img.shields.io/badge/Render-Deployed-46E3B7?style=flat-square&logo=render&logoColor=black)
 
-  
+---
 
+## Executive Summary
 
+**GridWise** is an LLM-assisted smart campus energy optimization system engineered for the **BUP CSE Fest 2026 Hackathon**. 
 
-```{=html}
+The system evaluates a 24-hour campus energy profile comprising electricity demand, rooftop solar availability, time-of-use tariffs, battery constraints, and short, natural-language operator notes. By interpreting operator instructions using a Large Language Model (LLM) constrained by deterministic validation guardrails, GridWise constructs a linear programming model to compute an optimal, lowest-cost 24-hour energy dispatch schedule.
 
-<h1>
+---
 
-```
+## Table of Contents
 
-GridWise
+- [Project Description](#-project-description)
+- [Key Features](#-key-features)
+- [Objectives](#-objectives)
+- [Target Scenario](#-target-scenario)
+- [System Architecture](#-system-architecture)
+- [Supported Directives](#-supported-directives)
+- [API Endpoints](#-api-endpoints)
+- [Optimization Model](#-optimization-model)
+- [Validation & Guardrails](#-validation--guardrails)
+- [Independent Verification](#-independent-schedule-verification)
+- [Tech Stack](#-technologies-used)
+- [Installation & Local Setup](#-installation)
+- [Testing & Quality Assurance](#-testing)
+- [Deployment](#-deployment)
+- [Project Structure](#-project-structure)
+- [Docker Deployment](#-docker)
+- [Known Limitations](#-known-limitations)
+- [Team Members](#-team-members)
+- [References](#-references)
 
-```{=html}
+---
 
-</h1>
+## 📝 Project Description
 
-```
+In smart campus microgrids, human operators frequently introduce real-time operational constraints using informal natural language (e.g., maintaining battery reserves for maintenance or adjusting solar output due to weather events). Translating these unstructured notes into machine-executable parameters is prone to interpretation errors.
 
-```{=html}
+**GridWise** solves this challenge by integrating an LLM directly into the operator-note interpretation pipeline. The LLM parses natural language notes into structured energy directives. These directives are then verified through deterministic guardrails before being passed to a deterministic solver (SciPy HiGHS LP solver). The LLM is strictly used for linguistic interpretation and does not directly calculate energy quantities or schedules.
 
-<p>
+---
 
-```
+## 💡 Key Features
 
-`<strong>`{=html}LLM-Assisted Smart Campus Energy
+1. **LLM-Based Directive Interpretation:** Translates varied natural-language operational notes into structured JSON constraints.
+2. **Deterministic Guardrails:** Validates LLM outputs against strict schemas, numeric bounds, and logic rules prior to optimization, rejecting malformed data.
+3. **24-Hour Energy Cost Minimization:** Formulates and solves a 24-interval Linear Programming (LP) model to minimize electricity costs using SciPy/HiGHS.
+4. **Battery Energy Storage Management:** Optimizes charge/discharge cycles while respecting state-of-charge (SoC) bounds, rate limits, and end-of-day neutrality constraints.
+5. **Solar Yield Optimization:** Integrates rooftop solar availability with support for solar curtailment and directive-based temporary reductions.
+6. **Post-Optimization Verification Replay:** Independently simulates and validates the generated schedule against physical and directive constraints prior to client delivery.
+7. **Production REST API:** High-performance FastAPI application featuring automated OpenAPI/Swagger documentation, health checks, and structured error handling.
 
-Optimization`</strong>`{=html}
+---
 
-```{=html}
+## 🎯 Objectives
 
-</p>
+- **Natural Language Parsing:** Convert unstructured human operational notes into standardized JSON energy directives.
+- **Guaranteed System Safety:** Eliminate LLM hallucinations or improper directives through rigid validation guardrails.
+- **Cost Minimization:** Solve for minimal grid electricity expenditure while honoring all physical and operational constraints.
+- **Physical Feasibility:** Ensure energy conservation, battery conservation laws, solar generation caps, and tariff schedules are met.
+- **Independent Verification:** Perform continuous post-optimization sanity checking on all response payloads.
 
-```
+---
 
-```{=html}
+## 🏫 Target Scenario
 
-<p>
+Consider a smart campus equipped with:
+- Grid connection subject to dynamic time-of-use tariffs.
+- Rooftop photovoltaic solar array.
+- Battery Energy Storage System (BESS).
+- Predicted 24-hour load/demand profile.
 
-```
+Campus engineers provide 1 to 3 natural-language notes to describe temporary real-time conditions.
 
-`<img src="https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python&logoColor=white" alt="Python" />`{=html}
+### Examples:
+- *"Solar output will drop to about 20% from 1 PM to 3 PM."*  
+  $\rightarrow$ **Directive:** `solar_reduction` | **Hours:** $[13, 14]$ | **Factor:** $0.20$
+- *"Do not charge the battery between 2 PM and 4 PM."*  
+  $\rightarrow$ **Directive:** `no_charge_window` | **Hours:** $[14, 15]$
+- *"Please keep at least 120 kWh in reserve from 6 PM to 9 PM."*  
+  $\rightarrow$ **Directive:** `minimum_battery_reserve` | **Hours:** $[18, 19, 20]$ | **Reserve:** $120\text{ kWh}$
+- *"Note: Standard operations today."*  
+  $\rightarrow$ **Directive:** `no_op` | **Applies:** `false`
 
-`<img src="https://img.shields.io/badge/FastAPI-API-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI" />`{=html}
+---
 
-`<img src="https://img.shields.io/badge/SciPy-Optimization-8CAAE6?style=flat-square&logo=scipy&logoColor=white" alt="SciPy" />`{=html}
+## 🏗️ System Architecture
 
-`<img src="https://img.shields.io/badge/Docker-Container-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />`{=html}
-
-`<img src="https://img.shields.io/badge/Render-Deployed-46E3B7?style=flat-square&logo=render&logoColor=black" alt="Render" />`{=html}
-
-```{=html}
-
-</p>
-
-```
-
-:::
-
-  
-
-------------------------------------------------------------------------
-
-  
-
-### Table of Contents
-
-  
-
-[Project Description](#project-description) - [Features](#features) -
-
-[Objectives](#objectives) - [Target Scenario](#target-scenario) -
-
-[Architecture](#architecture) - [Supported
-
-Directives](#supported-directives) - [API Endpoints](#api-endpoints) -
-
-[Technologies Used](#technologies-used) -
-
-[Installation](#installation) - [Testing](#testing) -
-
-[Deployment](#deployment) - [Project Structure](#project-structure) -
-
-[Team Members](#team-members) - [References](#references)
-
-  
-
-------------------------------------------------------------------------
-
-  
-
-## 📝 Project Description `<a id="project-description">`{=html}`</a>`{=html}
-
-  
-
-**GridWise** is an LLM-assisted smart campus energy optimization service
-
-developed for the **BUP CSE Fest 2026 Hackathon**.
-
-  
-
-The system receives a 24-hour energy scenario containing campus
-
-electricity demand, rooftop solar availability, time-varying grid
-
-tariffs, battery parameters, and short natural-language operator notes.
-
-  
-
-The main challenge is to transform human-written operating instructions
-
-into reliable, machine-checkable constraints. GridWise uses a
-
-language-capable generative model to interpret the operator notes,
-
-deterministic guardrails to validate the interpretation, and a
-
-mathematical optimizer to generate a valid low-cost 24-hour energy
-
-schedule.
-
-  
-
-The LLM is therefore part of the actual operator-note interpretation
-
-path. It does not directly generate the final energy schedule.
-
-  
-
-The official challenge requires the service to accept a 24-hour scenario
-
-and return both a machine-checkable interpretation of the operator notes
-
-and the final 24-hour schedule.
-
-  
-
-## 💡 Project Features `<a id="features">`{=html}`</a>`{=html}
-
-  
-
-i. **LLM-Based Operator Note Interpretation**
-
-- Interprets natural-language energy instructions.
-
-- Handles different ways of expressing the same directive.
-
-- Produces structured directive information for downstream
-
-processing.
-
-ii. **Deterministic Guardrails**
-
-  
-
-- Validates the LLM output before it reaches the optimizer.
-
-- Checks directive type, note mapping, hours, numeric ranges, and
-
-`applies` semantics.
-
-- Rejects malformed or unsupported interpretations instead of silently
-
-modifying them.
-
-  
-
-iii. **24-Hour Energy Optimization**
-
-  
-
-- Optimizes grid electricity usage over exactly 24 hourly intervals.
-
-- Minimizes total grid electricity cost after all applicable
-
-constraints are satisfied.
-
-- Uses linear programming with SciPy/HiGHS.
-
-  
-
-iv. **Battery Energy Management**
-
-  
-
-- Supports battery charging and discharging.
-
-- Enforces battery capacity and minimum reserve constraints.
-
-- Enforces hourly charge/discharge limits.
-
-- Maintains end-of-day battery neutrality.
-
-  
-
-v. **Solar Energy Management**
-
-- Uses available rooftop solar to reduce grid purchases.
-
-- Supports temporary solar-reduction directives.
-
-- Allows solar curtailment when generation exceeds useful demand/storage capacity.
-
-- Does not model grid export.
-
-
-
-vi. **Independent Schedule Validation**
-
-  
-
-- Replays the final schedule after optimization.
-
-- Verifies energy balance, battery state transitions, solar limits,
-
-grid caps, directive constraints, and reported metrics.
-
-- Returns the final result only after validation succeeds.
-
-  
-
-vii. **Public HTTP API**
-
-  
-
--  `GET /health` for service readiness.
-
--  `POST /optimize-energy` for the complete optimization workflow.
-
-- FastAPI Swagger documentation available through `/docs`.
-
-  
-
-## 🎯 Objectives `<a id="objectives">`{=html}`</a>`{=html}
-
-  
-
--  **Understand Operator Instructions:** Convert natural-language
-
-operator notes into structured energy directives.
-
--  **Ensure Correctness:** Validate model-generated directives using
-
-deterministic guardrails.
-
--  **Optimize Energy Cost:** Minimize total grid electricity cost while
-
-satisfying all applicable constraints.
-
--  **Maintain Feasibility:** Produce schedules that satisfy energy,
-
-battery, solar, and operator-directive rules.
-
--  **Verify the Final Plan:** Independently replay and validate the
-
-generated schedule before returning it.
-
--  **Provide a Reproducible API:** Offer a simple HTTP interface that
-
-can be run locally, through Docker, or as a public deployment.
-
-  
-
-## 🏫 Target Scenario `<a id="target-scenario">`{=html}`</a>`{=html}
-
-  
-
-BUP operates a smart campus using:
-
-  
-
-- Grid electricity
-
-- Rooftop solar generation
-
-- Battery energy storage
-
-- Time-varying electricity tariffs
-
-- A 24-hour forecast of campus demand
-
-  
-
-Campus operators may also provide **1--3 natural-language notes**
-
-describing temporary conditions affecting the same 24-hour schedule.
-
-  
-
-For example:
-
-  
-
-> "Solar output will drop to about 20% from 1 PM to 3 PM."
-
-  
-
-The system should interpret this as a `solar_reduction` directive.
-
-  
-
-Another example:
-
-  
-
-> "Do not charge the battery between 2 PM and 4 PM."
-
-  
-
-The system should interpret this as a `no_charge_window` directive.
-
-  
-
-An irrelevant note should be classified as:
-
-  
-
-``` text
-
-no_op
-
-```
-
-  
-
-rather than being converted into an invented energy constraint.
-
-  
-
-## 🏗️ Architecture 
-
-  
-
-``` mermaid
-
+```mermaid
 flowchart LR
-
-A[24-Hour JSON Scenario] --> B[FastAPI / Pydantic]
-
-B --> C[LLM Operator-Note Interpretation]
-
-C --> D[Deterministic Guardrails]
-
-D --> E[Directive Constraints]
-
-E --> F[SciPy / HiGHS Optimizer]
-
-F --> G[Independent Schedule Replay]
-
-G --> H[Verified JSON Response]
-
+    A[24-Hour Scenario JSON] --> B[FastAPI / Pydantic]
+    B --> C[LLM Operator-Note Parser]
+    C --> D[Deterministic Guardrails]
+    D --> E[Structured Directives]
+    E --> F[SciPy / HiGHS LP Solver]
+    F --> G[Independent Schedule Verifier]
+    G --> H[Validated Response JSON]
 ```
 
-  
-
-### End-to-End Flow
-
-  
-
-``` text
-
-Client
-
-|
-
-| POST /optimize-energy
-
-v
-
-Request Validation
-
-|
-
-v
-
-LLM Interpretation
-
-|
-
-v
-
-Deterministic Guardrails
-
-|
-
-v
-
-Directive Application
-
-|
-
-v
-
-24-Hour Linear Optimization
-
-|
-
-v
-
-Independent Schedule Replay
-
-|
-
-v
-
-Structured JSON Response
+### Processing Pipeline
 
 ```
-
-  
-
-The core design principle is:
-
-  
-
-``` text
-
-Human language
-
-↓
-
-LLM interpretation
-
-↓
-
-Deterministic validation
-
-↓
-
-Mathematical optimization
-
-↓
-
-Independent verification
-
+[ Client Request ]
+       │
+       ▼
+[ Schema Validation (Pydantic) ]
+       │
+       ▼
+[ LLM Natural Language Parser ]
+       │
+       ▼
+[ Deterministic Guardrail Check ]
+       │
+       ▼
+[ LP Problem Formulation ]
+       │
+       ▼
+[ SciPy HiGHS Execution ]
+       │
+       ▼
+[ Independent Feasibility Replay ]
+       │
+       ▼
+[ Client JSON Response ]
 ```
 
-  
+---
 
-The LLM is not trusted to directly produce the final schedule.
+## 📌 Supported Directives
 
-  
+| Directive Type | Description | Key Parameters |
+| :--- | :--- | :--- |
+| `solar_reduction` | Scales usable solar generation during specified hours. | `hours`, `factor` ($0.0 - 1.0$) |
+| `minimum_battery_reserve` | Enforces a higher minimum battery state-of-charge. | `hours`, `minimum_energy_kwh` |
+| `no_charge_window` | Prohibits battery charging during specified hours. | `hours` |
+| `no_discharge_window` | Prohibits battery discharging during specified hours. | `hours` |
+| `max_grid_window` | Caps grid import power/energy during specified hours. | `hours`, `max_grid_kw` |
+| `no_op` | Denotes operational notes with no energy impact. | `applies = false` |
 
-## 📌 Supported Directives 
+> **Interval Convention:** Time bounds follow a start-inclusive, end-exclusive rule ($[\text{start}, \text{end})$).  
+> *Example:* 1 PM to 3 PM maps to hours $[13, 14]$.
 
-  
+---
 
------------------------------------------------------------------------
+## 📜 API Endpoints
 
-Directive Description
-
------------------------------------ -----------------------------------
-
-`solar_reduction` Reduces usable solar during
-
-specified hours.
-
-  
-
-`minimum_battery_reserve` Keeps battery energy at or above a
-
-required level.
-
-  
-
-`no_charge_window` Prevents battery charging during
-
-specified hours.
-
-  
-
-`no_discharge_window` Prevents battery discharging during
-
-specified hours.
-
-  
-
-`max_grid_window` Limits grid import during specified
-
-hours.
-
-  
-
-`no_op` Indicates that a note does not
-
-affect the current schedule.
-
------------------------------------------------------------------------
-
-  
-
-### Directive Examples
-
-  
-
-``` text
-
-"Solar output will drop to about 20% from 1 PM to 3 PM."
-
-→ solar_reduction
-
-→ hours: [13, 14]
-
-→ factor: 0.2
-
-```
-
-  
-
-``` text
-
-"Do not charge the battery between 2 PM and 4 PM."
-
-→ no_charge_window
-
-→ hours: [14, 15]
-
-```
-
-  
-
-``` text
-
-"Keep at least 120 kWh in reserve from 6 PM until 9 PM."
-
-→ minimum_battery_reserve
-
-→ hours: [18, 19, 20]
-
-→ minimum_energy_kwh: 120
-
-```
-
-  
-
-Time intervals use a start-inclusive, end-exclusive convention.
-
-  
-
-``` text
-
-1 PM to 3 PM → [13, 14]
-
-10 PM to midnight → [22, 23]
-
-```
-
-  
-
-For `solar_reduction`, the factor represents the usable fraction that
-
-remains:
-
-  
-
-``` text
-
-80% reduction → factor = 0.20
-
-60% reduction → factor = 0.40
-
-```
-
-  
-
-## 📜 API Endpoints `<a id="api-endpoints">`{=html}`</a>`{=html}
-
-  
-
-### Health
-
-  
-
--  **GET `/health`**: Returns service readiness status.
-
-  
-
-Expected response:
-
-  
-
-``` json
-
-{
-
-"status": "ok"
-
-}
-
-```
-
-  
+### Health Check
+- **`GET /health`**
+  - **Description:** Verifies service readiness and backend functionality.
+  - **Response:** `{"status": "ok"}`
 
 ### Energy Optimization
+- **`POST /optimize-energy`**
+  - **Description:** Receives a complete 24-hour scenario payload, executes note interpretation, runs optimization, verifies results, and returns the final schedule.
 
-  
+### Documentation
+- **Swagger UI:** `/docs` (Interactive testing interface)
+- **ReDoc:** `/redoc`
 
--  **POST `/optimize-energy`**: Accepts one 24-hour energy scenario and
-
-returns the interpreted directives and optimized schedule.
-
-  
-
-The request contains:
-
-  
-
-``` text
-
-scenario_id
-
-operator_notes
-
-hours
-
-battery
-
-```
-
-  
-
-The `hours` array must contain exactly 24 entries for hours `0` through
-
-`23`.
-
-  
-
-### API Documentation
-
-  
-
-FastAPI automatically provides interactive Swagger documentation:
-
-  
-
-``` text
-
-/docs
-
-```
-
-  
-
-Local:
-
-  
-
-``` text
-
-http://127.0.0.1:8000/docs
-
-```
-
-  
-
-Production:
-
-  
-
-``` text
-
-https://gridwisebaseproject.onrender.com/docs
-
-```
-
-  
+---
 
 ## ⚙️ Optimization Model
 
-  
+The system solves a bounded Linear Program over discrete hourly intervals $h \in \{0, 1, \dots, 23\}$.
 
-For every hour, GridWise manages:
+### Objective Function
+Minimize total energy cost across the 24-hour horizon:
 
-  
+$$\min \sum_{h=0}^{23} \left( \text{grid\_kwh}[h] \times \text{tariff\_bdt\_per\_kwh}[h] \right)$$
 
-- Grid electricity
+### Constraints
 
-- Solar energy
+1. **Power Balance (Hourly):**
+   $$\text{grid\_kwh}[h] + \text{solar\_used\_kwh}[h] + \text{battery\_discharge\_kwh}[h] = \text{demand\_kwh}[h] + \text{battery\_charge\_kwh}[h]$$
 
-- Battery charge/discharge
+2. **Solar Availability:**
+   $$0 \le \text{solar\_used\_kwh}[h] \le \text{solar\_available\_kwh}[h] \times \text{reduction\_factor}[h]$$
 
-- Battery state of charge
+3. **Battery Dynamics & Capacity:**
+   $$\text{SoC}[h] = \text{SoC}[h-1] + \text{battery\_charge\_kwh}[h] - \text{battery\_discharge\_kwh}[h]$$
+   $$\text{minimum\_energy\_kwh}[h] \le \text{SoC}[h] \le \text{capacity\_kwh}$$
 
-  
+4. **Rate Limits:**
+   $$0 \le \text{battery\_charge\_kwh}[h] \le \text{max\_charge\_rate\_kw}$$
+   $$0 \le \text{battery\_discharge\_kwh}[h] \le \text{max\_discharge\_rate\_kw}$$
 
-The primary objective is:
+5. **End-of-Day Neutrality:**
+   $$\text{SoC}[23] = \text{initial\_energy\_kwh}$$
 
-  
-
-``` text
-
-Minimize:
-
-  
-
-Σ(grid_kwh[h] × tariff_bdt_per_kwh[h])
-
-```
-
-  
-
-subject to all energy and operator constraints.
-
-  
-
-### Energy Balance
-
-  
-
-``` text
-
-grid_kwh
-
-+ solar_used_kwh
-
-+ battery_discharge_kwh
-
-=
-
-demand_kwh
-
-+ battery_charge_kwh
-
-```
-
-  
-
-### Battery
-
-  
-
-``` text
-
-minimum_energy_kwh
-
-≤
-
-battery_energy_after_kwh
-
-≤
-
-capacity_kwh
-
-```
-
-  
-
-The battery must also respect hourly charging and discharging limits.
-
-  
-
-### End-of-Day Neutrality
-
-  
-
-``` text
-
-battery_energy_after_hour_23
-
-=
-
-initial_energy_kwh
-
-```
-
-  
-
-This ensures the initial battery energy cannot be treated as free energy
-
-by ending the day with a lower battery state.
-
-  
+---
 
 ## 🛡️ Validation & Guardrails
 
-  
+To eliminate non-deterministic LLM behavior, outputs must pass validation rules before entering the LP solver:
 
-The LLM output is treated as untrusted structured data.
+- Strict mapping of response elements to original `note_index` references.
+- Structural checking of `structured_adjustment` metadata payload.
+- Hour array sanity checks ($h \in [0, 23]$, strictly ascending, no duplicates).
+- Bounds verification: $0.0 \le \text{factor} \le 1.0$ for solar reductions; non-negative energy thresholds for battery/grid caps.
+- Enforced boolean flag alignment: `applies = false` permitted only for `no_op`.
 
-  
-
-GridWise validates:
-
-  
-
-- One interpretation for every operator note.
-
-- Correct `note_index` mapping.
-
-- Supported directive types.
-
-- Correct `applies` semantics.
-
-- Unique hours.
-
-- Hours within `0–23`.
-
-- Ascending hour ordering.
-
-- Valid solar reduction factors.
-
-- Valid battery reserve values.
-
-- Valid grid-cap values.
-
-- Required `structured_adjustment` shapes.
-
-- No unauthorized changes to demand, tariffs, or battery parameters.
-
-  
-
-Only `no_op` may use:
-
-  
-
-``` text
-
-applies = false
-
-```
-
-  
-
-All other supported directives must use:
-
-  
-
-``` text
-
-applies = true
-
-```
-
-  
+---
 
 ## 🔍 Independent Schedule Verification
 
-  
+Before sending the JSON response to the user, a separate validator replays the generated schedule hour by hour to verify that:
 
-After optimization, the final schedule is independently replayed.
+1. Hourly energy conservation balances precisely.
+2. Battery state transitions obey SoC limits and rate bounds.
+3. No directive constraints (e.g., charge blocks, grid caps) are breached.
+4. Total grid energy usage, peak power demand, and total financial cost match the calculated optimization output.
 
-  
+---
 
-The validator checks:
+## 💻 Technologies Used
 
-  
+- **Language:** Python 3.12
+- **Framework:** FastAPI, Uvicorn
+- **Data Validation:** Pydantic v2
+- **Optimization:** SciPy (`scipy.optimize.linprog` HiGHS solver)
+- **LLM Integration:** Ollama / OpenAI-compatible Chat Completions API
+- **Containerization:** Docker
+- **Deployment:** Render Platform
 
-- Hourly energy balance.
+---
 
-- Solar availability.
-
-- Battery state transitions.
-
-- Battery capacity.
-
-- Minimum battery reserve.
-
-- Charge/discharge limits.
-
-- No-charge windows.
-
-- No-discharge windows.
-
-- Maximum grid limits.
-
-- Non-negative values.
-
-- End-of-day battery neutrality.
-
-- Total grid energy.
-
-- Total cost.
-
-- Peak grid usage.
-
-  
-
-A low-cost schedule is not accepted if it violates any hard constraint.
-
-  
-
-## 💻 Technologies Used `<a id="technologies-used">`{=html}`</a>`{=html}
-
-  
-
--  **Programming Language:**
-
-`<img alt="Python" src="https://img.shields.io/badge/-Python-3776AB?style=flat-square&logo=python&logoColor=white" />`{=html}
-
--  **Backend API:**
-
-`<img alt="FastAPI" src="https://img.shields.io/badge/-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" />`{=html}
-
--  **Data Validation:**
-
-`<img alt="Pydantic" src="https://img.shields.io/badge/-Pydantic-E92063?style=flat-square&logo=pydantic&logoColor=white" />`{=html}
-
--  **Optimization:**
-
-`<img alt="SciPy" src="https://img.shields.io/badge/-SciPy-8CAAE6?style=flat-square&logo=scipy&logoColor=white" />`{=html}
-
--  **LP Solver:**
-
-`<img alt="HiGHS" src="https://img.shields.io/badge/-HiGHS-Optimization-blue?style=flat-square" />`{=html}
-
--  **LLM:** Ollama / OpenAI-compatible Chat Completions API
-
--  **ASGI Server:**
-
-`<img alt="Uvicorn" src="https://img.shields.io/badge/-Uvicorn-499848?style=flat-square" />`{=html}
-
--  **Containerization:**
-
-`<img alt="Docker" src="https://img.shields.io/badge/-Docker-2496ED?style=flat-square&logo=docker&logoColor=white" />`{=html}
-
--  **Deployment:**
-
-`<img alt="Render" src="https://img.shields.io/badge/-Render-46E3B7?style=flat-square&logo=render&logoColor=black" />`{=html}
-
--  **Version Control:**
-
-`<img alt="Git" src="https://img.shields.io/badge/-Git-F05032?style=flat-square&logo=git&logoColor=white" />`{=html}
-
--  **Repository:**
-
-`<img alt="GitHub" src="https://img.shields.io/badge/-GitHub-181717?style=flat-square&logo=github&logoColor=white" />`{=html}
-
-  
-
-## 🚧 Installation 
-
-  
+## 🚧 Installation
 
 ### Prerequisites
-
-  
-
-- Python 3.12 recommended
-
+- Python 3.12+
 - Git
+- Ollama (for local LLM inference) or API keys for a hosted provider
 
-- pip
+### Setup Instructions
 
-- Ollama for local LLM execution, or a compatible hosted LLM provider
+```bash
+# 1. Clone the repository
+git clone https://github.com/YourRepo/GridWiseBaseProject.git
+cd GridWiseBaseProject
 
-- Docker (optional)
+# 2. Create and activate a virtual environment
+# Linux/macOS:
+python3.12 -m venv .venv
+source .venv/bin/activate
 
-  
+# Windows (PowerShell):
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
 
-### Clone the Repository
+# 3. Install dependencies
+pip install -r requirements-dev.txt
 
-  
-
-``` bash
-
-git  clone  YOUR_GITHUB_REPOSITORY_URL
-
-cd  GridWiseBaseProject
-
+# 4. Environment Configuration
+cp .env.example .env
 ```
 
-  
-
-### Create a Virtual Environment
-
-  
-
-#### Windows
-
-  
-
-``` powershell
-
-py -3.12  -m venv .venv
-
-.venv\Scripts\python.exe  -m pip install -r requirements-dev.txt
-
-```
-
-  
-
-#### Linux / macOS
-
-  
-
-``` bash
-
-python3.12  -m  venv  .venv
-
-.venv/bin/python  -m  pip  install  -r  requirements-dev.txt
-
-```
-
-  
-
-### Configure Environment Variables
-
-  
-
-Copy the example environment file:
-
-  
-
-#### Windows
-
-  
-
-``` powershell
-
-Copy-Item .env.example .env
-
-```
-
-  
-
-#### Linux / macOS
-
-  
-
-``` bash
-
-cp  .env.example  .env
-
-```
-
-  
-
-Example local Ollama configuration:
-
-  
-
-``` dotenv
-
+### Sample `.env` Configuration
+```dotenv
 LLM_PROVIDER=ollama
-
 LLM_BASE_URL=http://127.0.0.1:11434
-
 LLM_MODEL=qwen2.5:3b
-
 LLM_API_KEY=
-
 LLM_TIMEOUT_SECONDS=22
-
 LLM_RETRIES=1
-
 PORT=8000
-
 ```
 
-  
+---
 
-Pull the model:
+## 🧪 Testing
 
-  
+```bash
+# Run unit tests and system tests
+pytest
 
-``` bash
+# Execute demo simulation
+python scripts/demo.py
 
-ollama  pull  qwen2.5:3b
+# Run offline schema checks
+python scripts/check_samples.py --mode offline
 
+# Run full evaluation suite against live LLM model
+python evaluation/eval_language.py
 ```
 
-  
+---
 
-**Do not commit `.env` or API keys to GitHub.**
+## 🌐 Deployment
 
-  
+- **Live Service URL:** [https://gridwisebaseproject.onrender.com/](https://gridwisebaseproject.onrender.com/)
+- **Interactive Documentation:** [https://gridwisebaseproject.onrender.com/docs](https://gridwisebaseproject.onrender.com/docs)
 
-### Run the Application
+---
 
-  
+## 📁 Project Structure
 
-``` bash
-
-python  run.py
-
-```
-
-  
-
-The local service will be available at:
-
-  
-
-``` text
-
-http://127.0.0.1:8000
-
-```
-
-  
-
-## 🧪 Testing `<a id="testing">`{=html}`</a>`{=html}
-
-  
-
-### Run the Demo
-
-  
-
-Windows:
-
-  
-
-``` powershell
-
-.venv\Scripts\python.exe scripts\demo.py
-
-```
-
-  
-
-Linux/macOS:
-
-  
-
-``` bash
-
-.venv/bin/python  scripts/demo.py
-
-```
-
-  
-
-### Public Sample Verification
-
-  
-
-``` bash
-
-python  scripts/check_samples.py  --mode  offline
-
-```
-
-  
-
-### Automated Tests
-
-  
-
-``` bash
-
-python  -m  pytest
-
-```
-
-  
-
-### Live Model Verification
-
-  
-
-``` bash
-
-python  scripts/check_samples.py  --mode  live
-
-```
-
-  
-
-### Language Evaluation
-
-  
-
-``` bash
-
-python  evaluation/eval_language.py
-
-```
-
-  
-
-The language evaluation covers directive interpretation, paraphrased
-
-operator notes, time expressions, solar reductions, battery reserves,
-
-charge/discharge windows, grid limits, and irrelevant notes.
-
-  
-
-## 🌐 Deployment 
-
-  
-
-GridWise is deployed as a public HTTP service.
-
-  
-
-### Live Project
-
-  
-
-**Live API:** <https://gridwisebaseproject.onrender.com/>
-
-  
-
-### Health Check
-
-  
-
-``` text
-
-GET https://gridwisebaseproject.onrender.com/health
-
-```
-
-  
-
-Expected:
-
-  
-
-``` json
-
-{
-
-"status": "ok"
-
-}
-
-```
-
-  
-
-### Main API
-
-  
-
-``` text
-
-POST https://gridwisebaseproject.onrender.com/optimize-energy
-
-```
-
-  
-
-### Swagger UI
-
-  
-
-``` text
-
-https://gridwisebaseproject.onrender.com/docs
-
-```
-
-  
-
-### Thunder Client
-
-  
-
-Use the following request in Thunder Client:
-
-  
-
-``` text
-
-Method: GET
-
-URL: https://gridwisebaseproject.onrender.com/health
-
-```
-
-  
-
-For optimization:
-
-  
-
-``` text
-
-Method: POST
-
-URL: https://gridwisebaseproject.onrender.com/optimize-energy
-
-Content-Type: application/json
-
-```
-
-  
-
-Use the complete JSON from:
-
-  
-
-``` text
-
-examples/sample_request.json
-
-```
-
-  
-
-### Render Configuration
-
-  
-
-The service uses the project's Dockerfile for deployment.
-
-  
-
-The deployed application must:
-
-  
-
-- Bind to `0.0.0.0`.
-
-- Use the platform-provided `PORT`.
-
-- Expose `/health`.
-
-- Expose `/optimize-energy`.
-
-- Keep the configured LLM provider available during evaluation.
-
-  
-
-For hosted LLM deployment, configure the following through Render
-
-environment variables:
-
-  
-
-``` text
-
-LLM_PROVIDER
-
-LLM_BASE_URL
-
-LLM_MODEL
-
-LLM_API_KEY
-
-LLM_TIMEOUT_SECONDS
-
-LLM_RETRIES
-
-PORT
-
-```
-
-  
-
-Never place secret values in the README, Dockerfile, source code, or
-
-GitHub repository.
-
-  
-
-## 📁 Project Structure 
-
-  
-
-``` text
-
+```text
 GridWiseBaseProject/
-
-│
-
 ├── gridwise/
-
-│ ├── api.py
-
-│ ├── directives.py
-
-│ ├── llm.py
-
-│ ├── models.py
-
-│ ├── optimizer.py
-
-│ ├── prompts.py
-
-│ ├── settings.py
-
-│ └── validation.py
-
-│
-
-├── evaluation/
-
-│ ├── language_cases.json
-
-│ └── eval_language.py
-
-│
-
-├── examples/
-
-│ ├── sample_request.json
-
-│ └── sample_reference_response.json
-
-│
-
-├── scripts/
-
-│ ├── demo.py
-
-│ ├── check_samples.py
-
-│ └── warmup.py
-
-│
-
-├── tests/
-
-│
-
-├── docs/
-
-│
-
-├── run.py
-
-├── Dockerfile
-
-├── requirements.txt
-
-├── requirements-dev.txt
-
-├── .env.example
-
-└── README.md
-
+│   ├── api.py           # FastAPI application & route definitions
+│   ├── directives.py    # Directives data structures & logic
+│   ├── llm.py           # LLM connector interface
+│   ├── models.py        # Pydantic schemas & payload models
+│   ├── optimizer.py     # Linear Programming formulation (SciPy/HiGHS)
+│   ├── prompts.py       # Prompt engineering & system instruction sets
+│   ├── settings.py      # Environment configuration setup
+│   └── validation.py   # Guardrails & schedule verification module
+├── evaluation/          # LLM benchmarking test suites
+├── examples/            # Sample requests and standard schema templates
+├── scripts/             # Demonstration and evaluation tools
+├── tests/               # Pytest test suite
+├── Dockerfile           # Production build container definition
+├── requirements.txt     # Production dependencies
+├── run.py               # Application entry point
+└── README.md            # System documentation
 ```
 
-  
+---
 
 ## 🐳 Docker
 
-  
+```bash
+# Build Docker image
+docker build -t gridwise:1.0.0 .
 
-### Build
-
-  
-
-``` bash
-
-docker  build  -t  gridwise:1.0.0  .
-
+# Run container locally
+docker run --rm -p 8000:8000 --env-file .env gridwise:1.0.0
 ```
 
-  
-
-### Run
-
-  
-
-``` bash
-
-docker  run  --rm  \
-
--p 8000:8000 \
-
---env-file  .env  \
-
-gridwise:1.0.0
-
-```
-
-  
-
-### Test
-
-  
-
-``` bash
-
-curl  http://127.0.0.1:8000/health
-
-```
-
-  
-
-The Docker image must not contain:
-
-  
-
-- API keys
-
-- Access tokens
-
-- Passwords
-
--  `.env`
-
-- Private credentials
-
-- Secret provider configuration
-
-  
+---
 
 ## ⚠️ Known Limitations
 
-  
+- **Model Dependency:** Natural language directive extraction quality relies on the underlying LLM's reasoning performance.
+- **Microgrid Scope:** Grid export (feed-in tariff) modeling is currently excluded based on competition specifications.
+- **Fixed Horizon:** Optimized strictly for single 24-hour planning cycles without multi-day lookahead.
 
-- LLM interpretation quality depends on the selected model/provider.
+---
 
-- Hosted LLM providers introduce latency, quota, rate-limit, and availability dependencies.
+## 👷 Team Members
 
-- Grid export is not modeled.
+| Name | Role | Email | GitHub |
+| :--- | :--- | :--- | :--- |
+| **KM Hasibur Rahman** | Team Lead / System Architect | srijond57@gmail.com | https://github.com/srijon57 |
+| **Sadik Rahman** | Core Developer | sadik.nai.008@gmail.com | https://github.com/SadikRahman14 |
+| **Kazi Kamruddin Ahmed** | Quality Assurance / Tester | kazikamruddinahmed@gmail.com | https://github.com/kazi-kamruddin |
 
-- The optimizer is designed for the challenge's 24-hour planning horizon.
+---
 
-- There is no automatic non-LLM fallback interpreter.
+## 📚 References
 
-- Peak grid usage is reported but is not a secondary optimization objective.
-
-  
-
-## 👷 Team Members 
-
-  
-
-**ID**  **Name**  **Email**  **GitHub**  **Role**
-
--------- ------------------- ----------- ------------ -----------
-
---- **Team Member 1** --- KM Hasibur Rahman --- Lead
-
---- **Team Member 2** --- Sadik Rahman --- Developer
-
---- **Team Member 3** --- Kazi Kamruddin Ahmed --- Tester
-
-
-  
-
-## 📚 References 
-
-  
-
-1. **BUP CSE Fest 2026 Hackathon --- Preliminary Problem Statement:
-
-GridWise LLM**
-
-2.  **BUP CSE Fest 2026 --- Participant Guide & Evaluation Rubric**
-
-3. FastAPI
-
-4. Pydantic
-
-5. SciPy / HiGHS
-
-6. Uvicorn
-
-7. Docker
-
-8. Render
-
-  
-
-## ✔️ Live Project 
-
-  
-
-**Live API:** [GRIDWISE](https://gridwisebaseproject.onrender.com/)
-
-  
-
-**API Documentation:** [SWAGGERUI](https://gridwisebaseproject.onrender.com/docs)
-
-  
-
-**API Docs Check:**[Docs](https://gridwisebaseproject.onrender.com/docs)
-
-  
-
-------------------------------------------------------------------------
+1. **BUP CSE Fest 2026 Hackathon** — Problem Statement & Evaluation Matrix.
+2. **FastAPI Framework** — High-performance web API framework.
+3. **SciPy Optimization Documentation** — HiGHS linear programming solver.
