@@ -1,0 +1,330 @@
+{
+  "cases": [
+    {
+      "id": "MULTI-001",
+      "description": "Solar reduction + no charge + no-op",
+      "operator_notes": [
+        "Panel washing from noon until 2 PM will leave only one quarter of normal solar output available.",
+        "Do not charge the battery between 2 PM and 4 PM.",
+        "The sports office moved next month's registration deadline."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "solar_reduction",
+          "structured_adjustment": {
+            "hours": [12, 13],
+            "factor": 0.25
+          }
+        },
+        {
+          "note_index": 1,
+          "applies": true,
+          "directive_type": "no_charge_window",
+          "structured_adjustment": {
+            "hours": [14, 15]
+          }
+        },
+        {
+          "note_index": 2,
+          "applies": false,
+          "directive_type": "no_op",
+          "structured_adjustment": null
+        }
+      ]
+    },
+
+    {
+      "id": "MULTI-002",
+      "description": "No discharge + irrelevant battery note",
+      "operator_notes": [
+        "Do not draw energy from battery storage from 5 PM until 8 PM.",
+        "The facilities committee will discuss battery procurement next semester."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "no_discharge_window",
+          "structured_adjustment": {
+            "hours": [17, 18, 19]
+          }
+        },
+        {
+          "note_index": 1,
+          "applies": false,
+          "directive_type": "no_op",
+          "structured_adjustment": null
+        }
+      ]
+    },
+
+    {
+      "id": "MULTI-003",
+      "description": "Reserve + early no-charge + no-op",
+      "operator_notes": [
+        "Keep at least 80 kWh stored in the battery from 6 PM until 9 PM.",
+        "Battery charging will be unavailable from 1 AM until 4 AM.",
+        "Last month's electricity bill has been approved."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "minimum_battery_reserve",
+          "structured_adjustment": {
+            "hours": [18, 19, 20],
+            "minimum_energy_kwh": 80
+          }
+        },
+        {
+          "note_index": 1,
+          "applies": true,
+          "directive_type": "no_charge_window",
+          "structured_adjustment": {
+            "hours": [1, 2, 3]
+          }
+        },
+        {
+          "note_index": 2,
+          "applies": false,
+          "directive_type": "no_op",
+          "structured_adjustment": null
+        }
+      ]
+    },
+
+    {
+      "id": "MULTI-004",
+      "description": "Grid cap + no charge",
+      "operator_notes": [
+        "Grid imports may not exceed 200 kWh between 6 PM and 8 PM.",
+        "Suspend battery charging from 2 AM until 4 AM."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "max_grid_window",
+          "structured_adjustment": {
+            "hours": [18, 19],
+            "max_grid_kwh": 200
+          }
+        },
+        {
+          "note_index": 1,
+          "applies": true,
+          "directive_type": "no_charge_window",
+          "structured_adjustment": {
+            "hours": [2, 3]
+          }
+        }
+      ]
+    },
+
+    {
+      "id": "MULTI-005",
+      "description": "Solar reduction + no discharge + grid cap",
+      "operator_notes": [
+        "Solar availability will fall to half its normal level from 10 AM until noon.",
+        "Battery discharge is unavailable between 5 AM and 7 AM.",
+        "Limit grid imports to 200 kWh from 6 PM until 8 PM."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "solar_reduction",
+          "structured_adjustment": {
+            "hours": [10, 11],
+            "factor": 0.5
+          }
+        },
+        {
+          "note_index": 1,
+          "applies": true,
+          "directive_type": "no_discharge_window",
+          "structured_adjustment": {
+            "hours": [5, 6]
+          }
+        },
+        {
+          "note_index": 2,
+          "applies": true,
+          "directive_type": "max_grid_window",
+          "structured_adjustment": {
+            "hours": [18, 19],
+            "max_grid_kwh": 200
+          }
+        }
+      ]
+    },
+
+    {
+      "id": "MULTI-006",
+      "description": "No charge + grid cap + no-op",
+      "operator_notes": [
+        "The battery must not absorb energy from 7 AM until 9 AM.",
+        "Apply a grid-import ceiling of 210 kWh between 7 PM and 9 PM.",
+        "The solar maintenance report from last month has been archived."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "no_charge_window",
+          "structured_adjustment": {
+            "hours": [7, 8]
+          }
+        },
+        {
+          "note_index": 1,
+          "applies": true,
+          "directive_type": "max_grid_window",
+          "structured_adjustment": {
+            "hours": [19, 20],
+            "max_grid_kwh": 210
+          }
+        },
+        {
+          "note_index": 2,
+          "applies": false,
+          "directive_type": "no_op",
+          "structured_adjustment": null
+        }
+      ]
+    },
+
+    {
+      "id": "MULTI-007",
+      "description": "Percentage reserve + no charge + distractor",
+      "operator_notes": [
+        "Keep at least one quarter of the battery's total capacity available from 6 AM until 9 AM.",
+        "Battery charging is disabled from midnight until 2 AM.",
+        "The energy committee will meet next week."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "minimum_battery_reserve",
+          "structured_adjustment": {
+            "hours": [6, 7, 8],
+            "minimum_energy_kwh": 55
+          }
+        },
+        {
+          "note_index": 1,
+          "applies": true,
+          "directive_type": "no_charge_window",
+          "structured_adjustment": {
+            "hours": [0, 1]
+          }
+        },
+        {
+          "note_index": 2,
+          "applies": false,
+          "directive_type": "no_op",
+          "structured_adjustment": null
+        }
+      ]
+    },
+
+    {
+      "id": "MULTI-008",
+      "description": "Separate no-charge and no-discharge windows",
+      "operator_notes": [
+        "Do not discharge the battery between midnight and 2 AM.",
+        "The battery charger will be offline from 10 PM until midnight."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "no_discharge_window",
+          "structured_adjustment": {
+            "hours": [0, 1]
+          }
+        },
+        {
+          "note_index": 1,
+          "applies": true,
+          "directive_type": "no_charge_window",
+          "structured_adjustment": {
+            "hours": [22, 23]
+          }
+        }
+      ]
+    },
+
+    {
+      "id": "MULTI-009",
+      "description": "Three unrelated notes should all be no-op",
+      "operator_notes": [
+        "The finance office approved last month's electricity bill.",
+        "The solar team submitted yesterday's inspection report.",
+        "Battery procurement options will be reviewed next semester."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": false,
+          "directive_type": "no_op",
+          "structured_adjustment": null
+        },
+        {
+          "note_index": 1,
+          "applies": false,
+          "directive_type": "no_op",
+          "structured_adjustment": null
+        },
+        {
+          "note_index": 2,
+          "applies": false,
+          "directive_type": "no_op",
+          "structured_adjustment": null
+        }
+      ]
+    },
+
+    {
+      "id": "MULTI-010",
+      "description": "Solar reduction + reserve + grid cap",
+      "operator_notes": [
+        "Expect an 80% reduction in rooftop solar from 1 PM until 3 PM.",
+        "Maintain at least 60 kWh in battery storage from 6 PM through 9 PM.",
+        "Grid imports must stay at or below 210 kWh between 7 PM and 9 PM."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "solar_reduction",
+          "structured_adjustment": {
+            "hours": [13, 14],
+            "factor": 0.2
+          }
+        },
+        {
+          "note_index": 1,
+          "applies": true,
+          "directive_type": "minimum_battery_reserve",
+          "structured_adjustment": {
+            "hours": [18, 19, 20],
+            "minimum_energy_kwh": 60
+          }
+        },
+        {
+          "note_index": 2,
+          "applies": true,
+          "directive_type": "max_grid_window",
+          "structured_adjustment": {
+            "hours": [19, 20],
+            "max_grid_kwh": 210
+          }
+        }
+      ]
+    }
+  ]
+}
