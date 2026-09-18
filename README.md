@@ -86,7 +86,6 @@ The LLM is therefore part of the real operator-note interpretation path. It **do
 | Reliability test | ✅ 10/10 successful, 0 provider/schema failures |
 | Public Render deployment | ✅ Live |
 | Local Dockerfile | ✅ Present |
-| Pullable registry fallback image | ⚠️ Publish an exact image tag/digest before final submission if not already published |
 
 ### Latest reliability snapshot
 
