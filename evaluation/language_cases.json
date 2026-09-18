@@ -1,0 +1,112 @@
+{
+  "cases": [
+    {
+      "id": "LANG-001",
+      "description": "Solar reduction using percentage reduction wording",
+      "operator_notes": [
+        "Rooftop solar production will be reduced by 80% from 1 PM until 3 PM."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "solar_reduction",
+          "structured_adjustment": {
+            "hours": [13, 14],
+            "factor": 0.2
+          }
+        }
+      ]
+    },
+
+    {
+      "id": "LANG-002",
+      "description": "Minimum battery reserve",
+      "operator_notes": [
+        "Keep at least 60 kWh stored in the battery from 6 PM until 9 PM."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "minimum_battery_reserve",
+          "structured_adjustment": {
+            "hours": [18, 19, 20],
+            "minimum_energy_kwh": 60
+          }
+        }
+      ]
+    },
+
+    {
+      "id": "LANG-003",
+      "description": "No charging window",
+      "operator_notes": [
+        "Battery charging will be unavailable between 2 PM and 4 PM."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "no_charge_window",
+          "structured_adjustment": {
+            "hours": [14, 15]
+          }
+        }
+      ]
+    },
+
+    {
+      "id": "LANG-004",
+      "description": "No discharging window",
+      "operator_notes": [
+        "Do not discharge the battery from 7 PM until 9 PM."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "no_discharge_window",
+          "structured_adjustment": {
+            "hours": [19, 20]
+          }
+        }
+      ]
+    },
+
+    {
+      "id": "LANG-005",
+      "description": "Grid import cap",
+      "operator_notes": [
+        "Grid import must remain below 1000 kWh between 5 PM and 7 PM."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": true,
+          "directive_type": "max_grid_window",
+          "structured_adjustment": {
+            "hours": [17, 18],
+            "max_grid_kwh": 1000
+          }
+        }
+      ]
+    },
+
+    {
+      "id": "LANG-006",
+      "description": "Irrelevant operator note",
+      "operator_notes": [
+        "The cafeteria will serve a new lunch menu tomorrow."
+      ],
+      "expected": [
+        {
+          "note_index": 0,
+          "applies": false,
+          "directive_type": "no_op",
+          "structured_adjustment": null
+        }
+      ]
+    }
+  ]
+}
