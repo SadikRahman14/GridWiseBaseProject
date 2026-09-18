@@ -23,7 +23,7 @@ NUMERIC_TOLERANCE = 0.01
 
 REQUEST_TIMEOUT_SECONDS = 30
 
-DELAY_BETWEEN_CASES_SECONDS = 2
+DELAY_BETWEEN_CASES_SECONDS = 5
 
 
 # ---------------------------------------------------------
